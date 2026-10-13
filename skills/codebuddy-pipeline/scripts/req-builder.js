@@ -19,8 +19,10 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { resolveCliCommand, runCli } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -70,37 +72,10 @@ function log(msg) {
   fs.appendFileSync(path.join(logsDir, 'pipeline.log'), line + '\n');
 }
 
-function resolveCliCommand() {
-  if (process.env.CODE_BUDDY_CMD) return process.env.CODE_BUDDY_CMD;
-  if (process.platform === 'win32') {
-    try {
-      const { execSync } = require('child_process');
-      const globalRoot = execSync('npm root -g', { encoding: 'utf8', shell: 'cmd.exe' }).trim();
-      const pkgDir = path.join(globalRoot, '@tencent-ai', 'codebuddy-code');
-      const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
-      const bin = typeof pkg.bin === 'string' ? pkg.bin : (pkg.bin && (pkg.bin.codebuddy || pkg.bin.cbc));
-      const entry = bin ? path.join(pkgDir, bin) : '';
-      if (entry && fs.existsSync(entry)) return { node: process.execPath, entry };
-    } catch (e) { /* 退回 .cmd 兜底 */ }
-    return 'codebuddy.cmd';
-  }
-  return 'codebuddy';
-}
-
-function runCli(args, cwd, timeoutMs) {
-  const cliCmd = resolveCliCommand();
-  const base = { encoding: 'utf8', timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 };
-  if (typeof cliCmd === 'object') {
-    return spawnSync(cliCmd.node, [cliCmd.entry, ...args], Object.assign({ cwd }, base));
-  }
-  const argStr = args.map(a => (/[\s"]/.test(a) ? '"' + a.replace(/"/g, '\\"') + '"' : a)).join(' ');
-  return spawnSync(process.env.ComSpec || 'cmd.exe', ['/c', `${cliCmd} ${argStr}`], Object.assign({ cwd }, base));
-}
-
 // 从 ~/.codebuddy/models.json 读取 wb bridge（buddy-bridge）同步的自定义模型列表；CLI 完整 ID 为 custom-local:<id>
 function loadCustomModels() {
   try {
-    const home = process.env.USERPROFILE || process.env.HOME || '';
+    const home = os.homedir();
     const p = path.join(home, '.codebuddy', 'models.json');
     if (!fs.existsSync(p)) return [];
     const data = JSON.parse(fs.readFileSync(p, 'utf8'));

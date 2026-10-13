@@ -108,7 +108,7 @@ Marvis 读取状态文件 → 在对话框转述产物摘要 → 问你要不要
 1. **远程交互方式**：所有运行加 `--remote`，confirm 阶段由 Marvis 中转确认；你只需要在对话框回复「确认」或具体意见，不要也不要尝试操作电脑终端。
 2. **CLI 就绪**：需已全局安装 `@tencent-ai/codebuddy-code`，首次使用需在终端执行 `codebuddy` 完成账号登录（复用登录态）。
 3. **开发目录可自定义**：所有项目落在 `<开发目录>/<项目名>`。开发目录优先取 `--project-root`，其次环境变量 `CODEBUDDY_PROJECT_ROOT`，再取用户级配置（`node scripts/set-project-root.js <目录>` 可一次性设定），未配置时使用当前工作目录。
-4. **分支策略**：拉取仓库默认优先 `DEV` 系分支，不使用 MASTER。
+4. **分支策略**：仓库默认分支为 `main`，开发分支为 `dev`；拉取已有仓库时默认优先 `DEV` / `dev` / `develop` 系分支。
 5. **模型限额**：执行中遇到 quota / 429 等过载，编排器自动按 `fallbackModels` 切换候选模型（在 `config/agents.json` 的角色下配置，按切换顺序填自定义模型 ID）。
 6. **权限参数**：脚本默认带 `--dangerously-skip-permissions`，仅在可信项目中运行。
 7. **日志**：每次运行写入 `logs/pipeline.log`，产物在 `artifacts/`。

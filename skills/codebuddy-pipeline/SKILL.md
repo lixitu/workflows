@@ -17,6 +17,7 @@ description: 触发 CodeBuddy 多 Agent 编排开发流水线（产品规划→�
 - `SKILL_ROOT/scripts/set-project-root.js` — 设置开发目录（写入用户级配置，跨机器/重装后仍生效）
 - `SKILL_ROOT/scripts/watch-issues.js` — GitHub Issues 监听 + 自动修复循环
 - `SKILL_ROOT/scripts/lib/resolve-project-root.js` — 开发目录解析器（无固定路径）
+- `SKILL_ROOT/scripts/lib/cli.js` — CodeBuddy CLI 的跨平台定位与执行（Windows / macOS / Linux 通用）
 - `SKILL_ROOT/config/agents.json` — 子代理定义（prompt/tools/model/fallbackModels）
 - `SKILL_ROOT/config/pipeline.json` — 开发流水线阶段序列（01~07）
 - `SKILL_ROOT/config/issue-pipeline.json` — Issue 修复流水线阶段序列（01~05）
@@ -27,6 +28,12 @@ description: 触发 CodeBuddy 多 Agent 编排开发流水线（产品规划→�
 - `SKILL_ROOT/logs/pipeline.log` — 运行日志
 
 **路径约定**：脚本内部以自身文件位置解析上述目录，因此技能可安装在任意路径下，命令中不要写死绝对路径，用 `SKILL_ROOT` 拼接。
+
+**跨平台命令示例**（脚本本身 Windows / macOS / Linux 通用）：
+
+- macOS / Linux（bash、zsh）：`SKILL=/path/to/skills/codebuddy-pipeline && node "$SKILL/scripts/run-pipeline.js" --project-name demo-app --remote`
+- Windows（PowerShell）：`$SKILL="D:\path\to\skills\codebuddy-pipeline"; node "$SKILL\scripts\run-pipeline.js" --project-name demo-app --remote`
+- Windows（cmd）：`set SKILL=D:\path\to\skills\codebuddy-pipeline && node "%SKILL%\scripts\run-pipeline.js" --project-name demo-app --remote`
 
 ## 前置条件
 
@@ -116,9 +123,9 @@ Issue 修复流水线（issue-pipeline.json）：01-issue-analysis → 02-fix-pl
 
 ## 注意事项
 
-1. **CLI 就绪**：需本机已装 `@tencent-ai/codebuddy-code`；脚本会自动定位 CLI 入口（Windows 下以 node 直跑 JS 入口，规避 .cmd 的 EINVAL）。
+1. **CLI 就绪**：需本机已装 `@tencent-ai/codebuddy-code`；脚本会自动定位 CLI 入口并跨平台执行——优先以 `node <CLI 的 JS 入口>` 直接运行（Windows 上可规避 .cmd 包装器的 EINVAL，macOS/Linux 同样可靠），找不到时回退到 PATH 中的 `codebuddy`（Windows 为 `codebuddy.cmd`）；也可用环境变量 `CODE_BUDDY_CMD` 显式指定。
 2. **开发目录**：项目落在 `<开发目录>/<项目名>`。开发目录由用户自定义（优先级：`--project-root` > `CODEBUDDY_PROJECT_ROOT` > `~/.codebuddy/settings.json` > `config/settings.json` > 当前工作目录）；未配置时脚本会打印提示，并可用 `node SKILL_ROOT/scripts/set-project-root.js <目录>` 一次性设定。
-3. **分支策略**：拉取仓库默认优先 `DEV` / `dev` / `develop`，其次取第 1 位远程分支，不用 MASTER。
+3. **分支策略**：仓库默认分支为 `main`（主分支），开发分支为 `dev`；拉取已有仓库时默认优先 `DEV` / `dev` / `develop`，其次取第 1 位远程分支。
 4. **模型限额**：quota / 429 时按 `agents.json` 中 `fallbackModels` 自动切换，无需人工干预。运行时也会从 `~/.codebuddy/models.json` 读取自定义模型作为候选，链尾 `auto` 兜底。
 5. **权限参数**：脚本默认带 `--dangerously-skip-permissions`，仅对可信项目使用；涉及删除/覆盖等敏感操作仍需遵守安全规则。
 6. **日志与产物**：每次运行写 `logs/pipeline.log`；产物在 `artifacts/`，转述给用户时用真实路径。

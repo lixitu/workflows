@@ -3,14 +3,14 @@
  * GitHub Issues 监听器 - 发现新 Issue 自动触发修复循环编排
  *
  * 用法：
- *   # 单轮检查（配合 Windows 计划任务定时调用）
+ *   # 单轮检查（适合交给系统计划任务定时调用：Windows 计划任务 / macOS launchd / Linux cron）
  *   node scripts/watch-issues.js --once
  *
  *   # 常驻监听（默认，每 intervalMs 轮询一次）
  *   node scripts/watch-issues.js --daemon
  *
- *   # 覆盖配置
- *   node scripts/watch-issues.js --owner xxx --repo yyy --token $env:GITHUB_TOKEN --dir <你的本地克隆目录> --once
+ *   # 覆盖配置（token 建议走环境变量 GITHUB_TOKEN，避免出现在命令历史中）
+ *   node scripts/watch-issues.js --owner xxx --repo yyy --token <你的token> --dir <你的本地克隆目录> --once
  *
  * 流程：拉取 open issues（按创建时间增量）→ 跳过 PR → 对每个新 issue 调用
  *       run-pipeline.js --pipeline-config config/issue-pipeline.json 执行修复循环

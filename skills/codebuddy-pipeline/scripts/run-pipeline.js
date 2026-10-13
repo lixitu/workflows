@@ -19,10 +19,11 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
 const readline = require('readline');
 const { resolveProjectRoot, HINT } = require('./lib/resolve-project-root');
+const { resolveCliCommand, runCli, cliLabel } = require('./lib/cli');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -50,24 +51,6 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'));
 }
 
-function resolveCliCommand() {
-  if (process.env.CODE_BUDDY_CMD) return process.env.CODE_BUDDY_CMD;
-  if (process.platform === 'win32') {
-    // 优先直接以 node 执行 CLI 的 JS 入口，规避 .cmd 包装器（spawn 直接跑 .cmd 会报 EINVAL）与 shell 转义
-    try {
-      const { execSync } = require('child_process');
-      const globalRoot = execSync('npm root -g', { encoding: 'utf8', shell: 'cmd.exe' }).trim();
-      const pkgDir = path.join(globalRoot, '@tencent-ai', 'codebuddy-code');
-      const pkg = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'));
-      const bin = typeof pkg.bin === 'string' ? pkg.bin : (pkg.bin && (pkg.bin.codebuddy || pkg.bin.cbc));
-      const entry = bin ? path.join(pkgDir, bin) : '';
-      if (entry && fs.existsSync(entry)) return { node: process.execPath, entry };
-    } catch (e) { /* 退回 .cmd 兜底 */ }
-    return 'codebuddy.cmd';
-  }
-  return 'codebuddy';
-}
-
 function replacePlaceholders(text, vars) {
   return text.replace(/\{(\w+)\}/g, (m, key) => (vars[key] !== undefined ? vars[key] : m));
 }
@@ -85,7 +68,7 @@ function log(msg) {
 // 从 ~/.codebuddy/models.json 读取 wb bridge（buddy-bridge）同步的自定义模型列表；CLI 完整 ID 为 custom-local:<id>
 function loadCustomModels() {
   try {
-    const home = process.env.USERPROFILE || process.env.HOME || '';
+    const home = os.homedir();
     const p = path.join(home, '.codebuddy', 'models.json');
     if (!fs.existsSync(p)) return [];
     const data = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -138,23 +121,13 @@ function main() {
   const vars = { projectName, projectDir };
   const cliCmd = resolveCliCommand();
 
-  // 执行 CLI：node 入口直跑（数组传参，规避 .cmd 的 EINVAL 与 shell 转义）或 cmd /c 包装（兜底）
-  function runCli(args, cwd, timeoutMs) {
-    const base = { encoding: 'utf8', timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 };
-    if (typeof cliCmd === 'object') {
-      return spawnSync(cliCmd.node, [cliCmd.entry, ...args], Object.assign({ cwd }, base));
-    }
-    const argStr = args.map(a => (/[\s"]/.test(a) ? '"' + a.replace(/"/g, '\\"') + '"' : a)).join(' ');
-    return spawnSync(process.env.ComSpec || 'cmd.exe', ['/c', `${cliCmd} ${argStr}`], Object.assign({ cwd }, base));
-  }
-
   // 检查 CLI 是否存在（dry-run 也检查，便于提前发现）
   const probe = runCli(['--version'], undefined, 15000);
   if (probe.error || probe.status !== 0) {
     console.error('错误：未找到 CodeBuddy CLI，请先执行 npm install -g @tencent-ai/codebuddy-code');
     process.exit(1);
   }
-  log(`CLI 就绪：${typeof cliCmd === 'object' ? `node ${cliCmd.entry}` : cliCmd} ${probe.stdout ? probe.stdout.trim() : ''}`);
+  log(`CLI 就绪：${cliLabel(cliCmd)} ${probe.stdout ? probe.stdout.trim() : ''}`);
 
   log(`开始流水线：${projectName} @ ${projectDir}（阶段 ${fromId} → ${toId}${dryRun ? '，演练模式' : ''}）`);
 
@@ -239,9 +212,8 @@ function main() {
       if (current && current !== 'auto') cmdArgs.push('--model', current); // auto = 不指定模型，交由 CLI 默认自动选择
       if (next && next !== 'auto') cmdArgs.push('--fallback-model', next); // CLI 层：主模型过载时自动回退
 
-      const cliLabel = typeof cliCmd === 'object' ? `${cliCmd.node} ${cliCmd.entry}` : cliCmd;
       log(`[${stage.id}] ${stage.name}（agent=${stage.agent}）开始，模型=${current || '默认'}${next ? `，CLI回退=${next}` : ''}`);
-      log(`[${stage.id}] 命令：${cliLabel} ${cmdArgs.slice(0, 5).join(' ')} ...`);
+      log(`[${stage.id}] 命令：${cliLabel(cliCmd)} ${cmdArgs.slice(0, 5).join(' ')} ...`);
 
       if (dryRun) { log(`[${stage.id}] [演练] 不实际执行`); return { ok: true, dry: true }; }
 

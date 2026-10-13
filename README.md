@@ -16,7 +16,9 @@ codebuddy-pipeline-skill/
         │   ├── run-pipeline.js   # 主编排器
         │   ├── req-builder.js    # 需求构建器（双版本提示词）
         │   ├── init-project.js   # 拉取 git 仓库
-        │   └── watch-issues.js   # GitHub Issues 监听 + 自动修复
+        │   ├── set-project-root.js # 设置开发目录
+        │   ├── watch-issues.js   # GitHub Issues 监听 + 自动修复
+        │   └── lib/              # 公共模块（开发目录解析、CLI 跨平台执行）
         ├── prompts/              # 各阶段提示词模板
         ├── config/
         │   ├── agents.json       # 子代理定义（角色/提示词/模型/工具）
@@ -33,9 +35,9 @@ codebuddy-pipeline-skill/
 | 分支 | 用途 |
 |---|---|
 | `dev` | 日常开发分支，所有改动**先提交到这里** |
-| `master` | 稳定分支，仅接受来自 `dev` 且**验证通过**的合并 |
+| `main` | 默认主分支（稳定分支），仅接受来自 `dev` 且**验证通过**的合并 |
 
-发布节奏：`dev` 开发 → 验证通过后合并到 `master` → 在 `master` 上打 release tag。
+GitHub 仓库的默认分支已设置为 `main`（不再是 `master`）。发布节奏：`dev` 开发 → 验证通过后合并到 `main` → 在 `main` 上打 release tag。
 
 ```bash
 # 1. 日常开发：提交并推送 dev
@@ -43,14 +45,14 @@ git checkout dev
 git add . && git commit -m "feat: xxx"
 git push origin dev
 
-# 2. 验证通过后同步到 master（不使用 fast-forward，保留合并记录）
-git checkout master
+# 2. 验证通过后同步到 main（不使用 fast-forward，保留合并记录）
+git checkout main
 git merge --no-ff dev
-git push origin master
+git push origin main
 
 # 3. 打 release tag 并推送
 git tag -a v0.1.0 -m "release v0.1.0"
-git push origin master --tags
+git push origin main --tags
 ```
 
 ## 安装
@@ -58,11 +60,12 @@ git push origin master --tags
 ### 方式一：Skills CLI（推荐）
 
 ```bash
-npx skills add <owner>/<repo>
+# 本仓库：https://github.com/lixitu/workflows
+npx skills add lixitu/workflows
 ```
 
-- 全局安装到用户级技能目录：`npx skills add <owner>/<repo> -g -y`
-- 仅装某技能：`npx skills add <owner>/<repo>@codebuddy-pipeline`
+- 全局安装到用户级技能目录：`npx skills add lixitu/workflows -g -y`
+- 仅装某技能：`npx skills add lixitu/workflows@codebuddy-pipeline`
 - 技能处于深层目录时：追加 `--full-depth`
 
 ### 方式二：手动安装
@@ -97,6 +100,8 @@ node "$SKILL/scripts/req-builder.js" --guide
 node "$SKILL/scripts/req-builder.js" --build "<需求文本>"
 node "$SKILL/scripts/req-builder.js" --select A --auto-run --project-name demo-app
 ```
+
+> 脚本在 Windows / macOS / Linux 上用法一致，仅变量赋值语法不同：Windows PowerShell 用 `$SKILL="D:\path\to\skills\codebuddy-pipeline"`，cmd 用 `set SKILL=D:\path\to\skills\codebuddy-pipeline`，其余命令照抄即可。
 
 开发目录由用户自定义，技能内不含任何固定机器路径。解析优先级：`--project-root` 参数 > 环境变量 `CODEBUDDY_PROJECT_ROOT` > 用户级配置 `~/.codebuddy/settings.json` > 技能内 `config/settings.json` > 当前工作目录。项目创建在 `<开发目录>/<项目名>` 下。
 
