@@ -83,6 +83,9 @@ npx skills add <owner>/<repo>
 ```bash
 SKILL=<技能安装目录>/codebuddy-pipeline
 
+# 设定开发目录（一次性写入用户级配置，之后所有项目都落在这里）
+node "$SKILL/scripts/set-project-root.js" ~/dev/codebuddy
+
 # 演练：只打印每阶段将执行的命令，不真正调用 CLI
 node "$SKILL/scripts/run-pipeline.js" --project-name demo-app --dry-run
 
@@ -95,13 +98,14 @@ node "$SKILL/scripts/req-builder.js" --build "<需求文本>"
 node "$SKILL/scripts/req-builder.js" --select A --auto-run --project-name demo-app
 ```
 
-开发目录默认 `D:\nodejs\code`（Windows）/ `~/codebuddy-projects`（macOS、Linux），可用 `--project-root` 或环境变量 `CODEBUDDY_PROJECT_ROOT` 覆盖。
+开发目录由用户自定义，技能内不含任何固定机器路径。解析优先级：`--project-root` 参数 > 环境变量 `CODEBUDDY_PROJECT_ROOT` > 用户级配置 `~/.codebuddy/settings.json` > 技能内 `config/settings.json` > 当前工作目录。项目创建在 `<开发目录>/<项目名>` 下。
 
 ## 配置
 
 - `config/agents.json`：各角色 Agent 的提示词、工具白名单、模型与 `fallbackModels`（模型限额时自动切换）。
 - `config/pipeline.json`：阶段序列，阶段加 `"confirm": true` 表示产出后需人工确认（默认 01/02）。
 - `config/github.json`：Issue 监听所需 `owner / repo / token`（从 `github.example.json` 复制，token 请勿提交到仓库）。
+- `config/settings.json`：开发目录（`projectRoot`），从 `settings.example.json` 复制后填写；也可用 `--project-root` / `CODEBUDDY_PROJECT_ROOT` / `scripts/set-project-root.js` 指定。
 
 ## 文档
 

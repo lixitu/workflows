@@ -1,0 +1,4 @@
+{
+  "_comment": "开发目录（项目根目录）配置。projectRoot 留空表示使用当前工作目录；也可用 --project-root 参数、环境变量 CODEBUDDY_PROJECT_ROOT 或 node scripts/set-project-root.js <目录> 指定，优先级均高于本文件。",
+  "projectRoot": ""
+}

@@ -14,11 +14,14 @@ description: 触发 CodeBuddy 多 Agent 编排开发流水线（产品规划→�
 - `SKILL_ROOT/scripts/run-pipeline.js` — 主编排器：按阶段序列逐阶段调用 CodeBuddy CLI
 - `SKILL_ROOT/scripts/req-builder.js` — 需求构建器：引导用户按 7 维度描述需求，AI 整理为双版本提示词供选择
 - `SKILL_ROOT/scripts/init-project.js` — 拉取 git 仓库到开发目录
+- `SKILL_ROOT/scripts/set-project-root.js` — 设置开发目录（写入用户级配置，跨机器/重装后仍生效）
 - `SKILL_ROOT/scripts/watch-issues.js` — GitHub Issues 监听 + 自动修复循环
+- `SKILL_ROOT/scripts/lib/resolve-project-root.js` — 开发目录解析器（无固定路径）
 - `SKILL_ROOT/config/agents.json` — 子代理定义（prompt/tools/model/fallbackModels）
 - `SKILL_ROOT/config/pipeline.json` — 开发流水线阶段序列（01~07）
 - `SKILL_ROOT/config/issue-pipeline.json` — Issue 修复流水线阶段序列（01~05）
 - `SKILL_ROOT/config/github.json` — Issue 监听所需 owner/repo/token（由 `github.example.json` 复制而来，需自行填写）
+- `SKILL_ROOT/config/settings.json` — 开发目录配置（由 `settings.example.json` 复制而来，可选）
 - `SKILL_ROOT/prompts/` — 各阶段提示词模板
 - `SKILL_ROOT/artifacts/` — 各阶段产物（运行时自动创建）；`artifacts/.confirm-state.json` 为远程暂停状态
 - `SKILL_ROOT/logs/pipeline.log` — 运行日志
@@ -29,7 +32,13 @@ description: 触发 CodeBuddy 多 Agent 编排开发流水线（产品规划→�
 
 1. 已安装 Node.js，并全局安装 CodeBuddy CLI：`npm install -g @tencent-ai/codebuddy-code`
 2. 首次使用在终端执行 `codebuddy` 完成账号登录（后续复用登录态）。
-3. 开发目录根：默认 `D:\nodejs\code`（Windows）/ `~/codebuddy-projects`（macOS、Linux），可用 `--project-root` 或环境变量 `CODEBUDDY_PROJECT_ROOT` 覆盖。
+3. 开发目录（项目根目录）由用户自定义，本技能不含任何固定机器路径。解析优先级：
+   1. `--project-root <目录>`（`init-project.js` 亦可用 `--root`）
+   2. 环境变量 `CODEBUDDY_PROJECT_ROOT`
+   3. 用户级配置 `~/.codebuddy/settings.json` 的 `projectRoot` 字段（推荐用 `node SKILL_ROOT/scripts/set-project-root.js <目录>` 一次性设置）
+   4. 本技能 `config/settings.json` 的 `projectRoot` 字段
+   5. 当前工作目录（兜底）
+   项目始终创建在 `<开发目录>/<项目名>` 的独立子文件夹下。
 
 ## 触发场景 → 执行动作
 
@@ -45,6 +54,7 @@ description: 触发 CodeBuddy 多 Agent 编排开发流水线（产品规划→�
 | 指定阶段范围 | `node SKILL_ROOT/scripts/run-pipeline.js --project-name <项目名> --from 04-develop --to 06-test` |
 | 先演练（不执行） | `node SKILL_ROOT/scripts/run-pipeline.js --project-name <项目名> --dry-run` |
 | 监听 Issues 自动修复 | `node SKILL_ROOT/scripts/watch-issues.js --daemon` 或 `--once` |
+| 设置/查看开发目录 | `node SKILL_ROOT/scripts/set-project-root.js <目录>`（不带参数则显示当前生效目录及来源） |
 
 ## 执行步骤
 
@@ -98,14 +108,16 @@ Issue 修复流水线（issue-pipeline.json）：01-issue-analysis → 02-fix-pl
 
 `req-builder.js`：`--guide` / `--build "<需求文本>"` / `--select A|B` / `--auto-run` / `--project-name` / `--remote` / `--dry-run`
 
-`init-project.js`：`--url`(必填) / `--name` / `--branch` / `--root` / `--dir` / `--dry-run`
+`init-project.js`：`--url`(必填) / `--name` / `--branch` / `--root`(= `--project-root`) / `--dir` / `--dry-run`
+
+`set-project-root.js`：`<开发目录>`（位置参数；不传则仅查看当前生效目录与来源）
 
 `watch-issues.js`：`--daemon`(常驻) / `--once` / `--owner` / `--repo` / `--token` / `--dir` / `--interval-ms` / `--process-existing`
 
 ## 注意事项
 
 1. **CLI 就绪**：需本机已装 `@tencent-ai/codebuddy-code`；脚本会自动定位 CLI 入口（Windows 下以 node 直跑 JS 入口，规避 .cmd 的 EINVAL）。
-2. **开发目录**：项目落在 `<project-root>/<项目名>`，默认 `D:\nodejs\code`，可用 `--project-root` 或 `CODEBUDDY_PROJECT_ROOT` 覆盖。
+2. **开发目录**：项目落在 `<开发目录>/<项目名>`。开发目录由用户自定义（优先级：`--project-root` > `CODEBUDDY_PROJECT_ROOT` > `~/.codebuddy/settings.json` > `config/settings.json` > 当前工作目录）；未配置时脚本会打印提示，并可用 `node SKILL_ROOT/scripts/set-project-root.js <目录>` 一次性设定。
 3. **分支策略**：拉取仓库默认优先 `DEV` / `dev` / `develop`，其次取第 1 位远程分支，不用 MASTER。
 4. **模型限额**：quota / 429 时按 `agents.json` 中 `fallbackModels` 自动切换，无需人工干预。运行时也会从 `~/.codebuddy/models.json` 读取自定义模型作为候选，链尾 `auto` 兜底。
 5. **权限参数**：脚本默认带 `--dangerously-skip-permissions`，仅对可信项目使用；涉及删除/覆盖等敏感操作仍需遵守安全规则。

@@ -7,13 +7,16 @@
  *   node scripts/init-project.js --url <git地址> --dir <目标目录> [--branch <分支名>] [--dry-run]
  *
  * 行为:
- *   - 目录固定根（默认 D:\nodejs\code）下独立子文件夹：--dir 缺省时 = <根目录>\<项目名>
+ *   - 目录自定义：--dir 缺省时 = <开发目录>/<项目名>；开发目录由用户指定（--root/--project-root 参数
+ *     > 环境变量 CODEBUDDY_PROJECT_ROOT > 用户级配置 ~/.codebuddy/settings.json > 本 Skill 的
+ *     config/settings.json > 当前工作目录），不含任何固定机器路径
  *   - --name 缺省时取 git 地址末尾仓库名作为项目名
  *   - --branch 缺省时，git ls-remote --heads 取第一个远程分支（即"第 1 位分支"）
  */
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { resolveProjectRoot, HINT } = require('./lib/resolve-project-root');
 
 function arg(name, def) {
   const i = process.argv.indexOf('--' + name);
@@ -22,8 +25,8 @@ function arg(name, def) {
 
 const url = arg('url', '');
 const name = arg('name', '');
-const root = arg('root', process.env.CODEBUDDY_PROJECT_ROOT
-  || (process.platform === 'win32' ? 'D:\\nodejs\\code' : path.join(require('os').homedir(), 'codebuddy-projects')));
+const rootInfo = resolveProjectRoot(arg('root', arg('project-root', '')));
+const root = rootInfo.root;
 let dir = arg('dir', '');
 if (!dir) {
   const repoName = name || (url.split('/').pop() || '').replace(/\.git\s*$/i, '');
@@ -32,6 +35,8 @@ if (!dir) {
     process.exit(1);
   }
   dir = path.join(root, repoName);
+  console.log(`[dir] 开发目录：${root}（来源：${rootInfo.source}）`);
+  if (!rootInfo.configured) console.log(HINT);
 }
 let branch = arg('branch', '');
 const dryRun = process.argv.includes('--dry-run');

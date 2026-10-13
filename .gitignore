@@ -3,5 +3,6 @@ logs/
 artifacts/
 data/
 config/github.json
+config/settings.json
 *.log
 .DS_Store

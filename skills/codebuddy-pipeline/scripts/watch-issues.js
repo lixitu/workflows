@@ -10,7 +10,7 @@
  *   node scripts/watch-issues.js --daemon
  *
  *   # 覆盖配置
- *   node scripts/watch-issues.js --owner xxx --repo yyy --token $env:GITHUB_TOKEN --dir D:\code\repo --once
+ *   node scripts/watch-issues.js --owner xxx --repo yyy --token $env:GITHUB_TOKEN --dir <你的本地克隆目录> --once
  *
  * 流程：拉取 open issues（按创建时间增量）→ 跳过 PR → 对每个新 issue 调用
  *       run-pipeline.js --pipeline-config config/issue-pipeline.json 执行修复循环
@@ -23,6 +23,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
+const { expandUser } = require('./lib/resolve-project-root');
 const GITHUB_API = 'https://api.github.com';
 const STATE_FILE = path.join(ROOT, 'data', 'processed-issues.json');
 
@@ -49,7 +50,7 @@ function loadConfig(args) {
     owner: args['owner'] || fileCfg.owner,
     repo: args['repo'] || fileCfg.repo,
     token: args['token'] || process.env.GITHUB_TOKEN || fileCfg.token,
-    localProjectDir: args['dir'] || fileCfg.localProjectDir,
+    localProjectDir: expandUser(String(args['dir'] || fileCfg.localProjectDir || '').trim()),
     intervalMs: parseInt(args['interval-ms'] || fileCfg.intervalMs || 300000, 10),
     pipelineConfig: args['pipeline-config'] || fileCfg.pipelineConfig || 'config/issue-pipeline.json',
     processExisting: args['process-existing'] ? true : !!fileCfg.processExisting,

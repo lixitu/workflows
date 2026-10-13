@@ -1,6 +1,6 @@
 # 通过 Marvis 触发 CodeBuddy 开发工作流
 
-> 本说明面向用户侧：你只需要在 Marvis 对话框里说一句话，Marvis 会自动调用 `D:\nodejs\code\workflows` 下的编排脚本执行完整开发流水线。
+> 本说明面向用户侧：你只需要在 Marvis 对话框里说一句话，Marvis 会自动调用本技能 `scripts/` 目录下的编排脚本执行完整开发流水线。
 >
 > **当前交互约束**：你不在电脑边，所有交互（确认、提意见、看产物、决定下一步）全部通过 Marvis 对话框进行，无需也不应触碰终端。
 
@@ -40,14 +40,14 @@ Marvis 读取状态文件 → 在对话框转述产物摘要 → 问你要不要
 - Marvis 动作：
   1. 将需求写入 `artifacts/00-requirement.md`
   2. 运行 `node scripts/run-pipeline.js --project-name <项目名> --remote`
-- 说明：项目目录自动创建在 `D:\nodejs\code\<项目名>`；远程模式下 01 产品规划 / 02 需求拆解产出后自动暂停，由 Marvis 把产物摘要发给你，你在对话框确认或提意见后继续。
+- 说明：项目目录自动创建在 `<开发目录>/<项目名>`；远程模式下 01 产品规划 / 02 需求拆解产出后自动暂停，由 Marvis 把产物摘要发给你，你在对话框确认或提意见后继续。
 
 ### 2. 基于已有仓库开发（拉代码 + 全流程）
 
 - 你：「拉取 https://github.com/xxx/yyy.git 并开始开发，我的需求是……」
 - Marvis 动作：
   1. 运行 `node scripts/init-project.js --url https://github.com/xxx/yyy.git --name <项目名>`
-     - 目录自动落在 `D:\nodejs\code\<项目名>`（`--name` 缺省取仓库名）
+     - 目录自动落在 `<开发目录>/<项目名>`（`--name` 缺省取仓库名）
      - 分支缺省优先 `DEV` / `dev` / `develop`，否则取第 1 位远程分支
   2. 将需求写入 `artifacts/00-requirement.md`
   3. 运行 `node scripts/run-pipeline.js --project-name <项目名> --remote`
@@ -106,8 +106,8 @@ Marvis 读取状态文件 → 在对话框转述产物摘要 → 问你要不要
 ## 注意事项
 
 1. **远程交互方式**：所有运行加 `--remote`，confirm 阶段由 Marvis 中转确认；你只需要在对话框回复「确认」或具体意见，不要也不要尝试操作电脑终端。
-2. **CLI 就绪**：本机已装 `@tencent-ai/codebuddy-code@2.164.0`，首次使用需在终端执行 `codebuddy` 完成账号登录（复用登录态）。
-3. **开发目录固定**：所有项目落在 `D:\nodejs\code\<项目名>`，无需手动传目录。
+2. **CLI 就绪**：需已全局安装 `@tencent-ai/codebuddy-code`，首次使用需在终端执行 `codebuddy` 完成账号登录（复用登录态）。
+3. **开发目录可自定义**：所有项目落在 `<开发目录>/<项目名>`。开发目录优先取 `--project-root`，其次环境变量 `CODEBUDDY_PROJECT_ROOT`，再取用户级配置（`node scripts/set-project-root.js <目录>` 可一次性设定），未配置时使用当前工作目录。
 4. **分支策略**：拉取仓库默认优先 `DEV` 系分支，不使用 MASTER。
 5. **模型限额**：执行中遇到 quota / 429 等过载，编排器自动按 `fallbackModels` 切换候选模型（在 `config/agents.json` 的角色下配置，按切换顺序填自定义模型 ID）。
 6. **权限参数**：脚本默认带 `--dangerously-skip-permissions`，仅在可信项目中运行。

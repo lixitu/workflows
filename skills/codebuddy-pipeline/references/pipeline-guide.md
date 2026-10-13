@@ -61,7 +61,7 @@ workflows/
 
 ## 快速开始
 
-> 项目开发目录固定为 `D:\nodejs\code`，每个项目在根目录下建独立子文件夹（`D:\nodejs\code\<项目名>`），由 `--project-name` 自动生成，无需手动传目录。
+> 开发目录由用户自定义，无固定路径。优先级：`--project-root` 参数 > 环境变量 `CODEBUDDY_PROJECT_ROOT` > 用户级配置 `~/.codebuddy/settings.json` > 技能内 `config/settings.json` > 当前工作目录。每个项目在开发目录下建独立子文件夹（`<开发目录>/<项目名>`），由 `--project-name` 自动生成。可用 `node scripts/set-project-root.js <目录>` 一次性设定开发目录。
 
 ```bash
 # 1. 演练模式：只打印每个阶段将要执行的命令，不真正调用 CLI
@@ -104,8 +104,8 @@ node scripts/run-pipeline.js --project-name demo-app --remote
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `--project-name` | 项目名，会注入各阶段 prompt 的 `{projectName}` | 必填 |
-| `--project-dir` | 项目代码目录（开发/测试/部署阶段的工作目录） | 缺省 `D:\nodejs\code\<project-name>` |
-| `--project-root` | 项目根目录（`--project-dir` 未指定时用于拼接子目录） | `D:\nodejs\code` |
+| `--project-dir` | 项目代码目录（开发/测试/部署阶段的工作目录） | 缺省 `<开发目录>/<project-name>` |
+| `--project-root` | 开发目录（`--project-dir` 未指定时用于拼接子目录）；未自定义时取当前工作目录 | 见上"开发目录"优先级 |
 | `--from` | 起始阶段 id | `01-product-plan` |
 | `--to` | 结束阶段 id | `07-deploy` |
 | `--interactive` | 交互模式：`confirm: true` 的阶段产出后暂停审阅/可输入修订意见 | `false` |

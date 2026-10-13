@@ -4,6 +4,7 @@
  *
  * 用法：
  *   node scripts/run-pipeline.js --project-name demo-app
+ *   node scripts/run-pipeline.js --project-name demo-app --project-root /path/to/dev-dir
  *   node scripts/run-pipeline.js --project-name demo-app --dry-run
  *   node scripts/run-pipeline.js --project-name demo-app --from 04-develop --to 06-test
  *   node scripts/run-pipeline.js --project-name demo-app --remote
@@ -21,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const readline = require('readline');
+const { resolveProjectRoot, HINT } = require('./lib/resolve-project-root');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -73,9 +75,11 @@ function replacePlaceholders(text, vars) {
 function log(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;
   console.log(line);
-  const logsDir = path.join(ROOT, 'logs');
-  fs.mkdirSync(logsDir, { recursive: true });
-  fs.appendFileSync(path.join(logsDir, 'pipeline.log'), line + '\n');
+  try {
+    const logsDir = path.join(ROOT, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    fs.appendFileSync(path.join(logsDir, 'pipeline.log'), line + '\n');
+  } catch (e) { /* 安装目录只读时忽略日志落盘失败，不影响流水线执行 */ }
 }
 
 // 从 ~/.codebuddy/models.json 读取 wb bridge（buddy-bridge）同步的自定义模型列表；CLI 完整 ID 为 custom-local:<id>
@@ -96,14 +100,17 @@ function loadCustomModels() {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const projectName = args['project-name'];
-  const projectRoot = args['project-root'] || process.env.CODEBUDDY_PROJECT_ROOT
-    || (process.platform === 'win32' ? 'D:\\nodejs\\code' : path.join(require('os').homedir(), 'codebuddy-projects'));
-  const projectDir = args['project-dir'] || path.join(projectRoot, projectName);
   if (!projectName) {
     console.error('错误：必须提供 --project-name');
     process.exit(1);
   }
-  // 项目目录固定根目录下独立子文件夹；新项目目录自动创建
+  // 开发目录由用户自定义：--project-root > CODEBUDDY_PROJECT_ROOT > 用户级配置 > Skill 配置 > 当前工作目录
+  const rootInfo = resolveProjectRoot(args['project-root']);
+  const projectRoot = rootInfo.root;
+  const projectDir = args['project-dir'] || path.join(projectRoot, projectName);
+  log(`[开发目录] ${projectRoot}（来源：${rootInfo.source}）`);
+  if (!args['project-dir'] && !rootInfo.configured) console.log(HINT);
+  // 项目在开发目录下建独立子文件夹；新项目目录自动创建
   fs.mkdirSync(projectDir, { recursive: true });
 
   const dryRun = !!args['dry-run'];
